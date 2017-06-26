@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="Tomo Wang">
+
+    <title>Tomo.Wang</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+        .node {
+            cursor: pointer;
+        }
+        .node text {
+            font-weight: normal;
+        }
+        .link {
+            fill: none;
+            stroke: #9ecae1;
+            stroke-width: 1.5px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+    <script>
+        var width = window.innerWidth,
+            height = window.innerHeight,
+            radius = 50, diff = 10; // node raduis and level diff
+
+        var data = {
+            title: 'Tomo.Wang',
+            children: [{
+                title: 'Experiment',
+                children: [{
+                    title: 'Koch Snowflake',
+                    link: 'https://tomowang.github.io/koch-snowflake/'
+                }, {
+                    title: 'Music Player',
+                    link: 'http://music.tomo.wang/'
+                }, {
+                    title: 'ACO',
+                    link: 'http://aco.tomo.wang/'
+                }]
+            }, {
+                title: 'Power2',
+                link: 'http://power2.tomo.wang/'
+            }, {
+                title: 'Fox(狐)',
+                link: 'http://tomowang.github.io/fox/'
+            }, {
+                title: 'Admin Portal',
+                link: 'http://admin.tomo.wang/'
+            }, {
+                title: 'EnjoyABC',
+                link: 'http://enjoyabc.tomo.wang/'
+            }]
+        };
+
+        var graph = {
+            nodes: [],
+            links: []
+        };
+        // Returns a list of all nodes under the root.
+        function flatten(tree) {
+            var nodes = [], i = 0;
+
+            function recurse(node, level) {
+                node.level = level;
+                if (!node.id) {
+                    node.id = ++i;
+                }
+                nodes.push(node);
+                if (node.children) {
+                    node.children.forEach(function (n) {
+                        recurse(n, level + 1);
+                    });
+                }
+            }
+
+            recurse(tree, 0);
+            return nodes;
+        }
+        graph.nodes = flatten(data);
+        graph.links = d3.layout.tree().links(graph.nodes);
+        
+        var color = d3.scale.category10();
+
+        var force = d3.layout.force()
+            .charge(-120)
+            .friction(0.9)
+            .gravity(0)
+            .linkDistance(function (link, i) {
+                return (radius - diff * link.source.level) * 3;
+            })
+            .size([width, height]);
+
+        var svg = d3.select("body").append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        force
+            .nodes(graph.nodes)
+            .links(graph.links)
+            .start();
+
+        var link = svg.selectAll(".link")
+            .data(graph.links)
+            .enter().append("line")
+            .attr("class", "link")
+            .style("stroke-width", function (d) {
+                return 6 - d.level;
+            });
+
+        var node = svg.selectAll(".node")
+            .data(graph.nodes)
+            .enter().append("g")
+            .attr("class", "node")
+            .append("a")
+            .attr("xlink:href", function (d) { return d.link ? d.link : "javascript:void(0);"})
+            .call(force.drag);
+        
+        node.append("circle")
+            .attr("r", function (d) {
+                return radius - diff * d.level;
+            })
+            .style("fill", function (d) {
+                return color(d.level);
+            });
+        node.append("text")
+            .attr("dx", function (d) { return (radius - diff * d.level) * 1.1 })
+            .attr("dy", ".35em")
+            .text(function(d) { return d.title });
+
+        force.on("tick", function() {
+            link.attr("x1", function(d) { return d.source.x; })
+                .attr("y1", function(d) { return d.source.y; })
+                .attr("x2", function(d) { return d.target.x; })
+                .attr("y2", function(d) { return d.target.y; });
+
+            node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+        });
+
+    </script>
+</body>
+
+</html>
