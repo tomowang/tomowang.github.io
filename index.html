@@ -10,17 +10,17 @@
 
     <title>Tomo.Wang</title>
     <style>
-        html, body {
+        html,
+        body {
             margin: 0;
             padding: 0;
         }
-        .node {
-            cursor: pointer;
-        }
-        .node text {
+
+        a text {
             font-weight: normal;
         }
-        .link {
+
+        line {
             fill: none;
             stroke: #9ecae1;
             stroke-width: 1.5px;
@@ -29,124 +29,121 @@
 </head>
 
 <body>
+    <svg></svg>
     <!-- Placed at the end of the document so the pages load faster -->
-    <script src="//d3js.org/d3.v3.min.js" charset="utf-8"></script>
+    <!-- https://observablehq.com/@d3/force-directed-tree -->
+    <script src="https://d3js.org/d3.v6.min.js" charset="utf-8"></script>
     <script>
-        var width = window.innerWidth,
+        const width = window.innerWidth,
             height = window.innerHeight,
             radius = 50, diff = 10; // node raduis and level diff
 
-        var data = {
+        const data = {
             title: 'Tomo.Wang',
             children: [{
                 title: 'Experiment',
                 children: [{
                     title: 'Koch Snowflake',
-                    link: 'https://tomowang.github.io/koch-snowflake/'
+                    link: 'https://tomo.wang/koch-snowflake/'
                 }, {
-                    title: 'Music Player',
-                    link: 'http://music.tomo.wang/'
+                    title: 'Audio Visualization',
+                    link: 'https://music.tomo.wang/'
                 }, {
                     title: 'ACO',
-                    link: 'http://aco.tomo.wang/'
+                    link: 'https://aco.tomo.wang/'
                 }]
             }, {
                 title: 'Power2',
-                link: 'http://power2.tomo.wang/'
+                link: 'https://power2.tomo.wang/'
             }, {
                 title: 'Fox(狐)',
-                link: 'http://tomowang.github.io/fox/'
-            }, {
-                title: 'Admin Portal',
-                link: 'http://admin.tomo.wang/'
+                link: 'https://tomo.wang/fox/'
             }, {
                 title: 'EnjoyABC',
-                link: 'http://enjoyabc.tomo.wang/'
+                link: 'https://enjoyabc.tomo.wang/'
             }]
         };
 
-        var graph = {
-            nodes: [],
-            links: []
-        };
-        // Returns a list of all nodes under the root.
-        function flatten(tree) {
-            var nodes = [], i = 0;
-
-            function recurse(node, level) {
-                node.level = level;
-                if (!node.id) {
-                    node.id = ++i;
-                }
-                nodes.push(node);
-                if (node.children) {
-                    node.children.forEach(function (n) {
-                        recurse(n, level + 1);
-                    });
-                }
+        const drag = simulation => {
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
             }
-
-            recurse(tree, 0);
-            return nodes;
+            
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+            
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+            
+            return d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended);
         }
-        graph.nodes = flatten(data);
-        graph.links = d3.layout.tree().links(graph.nodes);
-        
-        var color = d3.scale.category10();
 
-        var force = d3.layout.force()
-            .charge(-120)
-            .friction(0.9)
-            .gravity(0)
-            .linkDistance(function (link, i) {
-                return (radius - diff * link.source.level) * 3;
-            })
-            .size([width, height]);
+        const root = d3.hierarchy(data);
+        const links = root.links();
+        const nodes = root.descendants();
 
-        var svg = d3.select("body").append("svg")
-            .attr("width", width)
-            .attr("height", height);
+        const color = d3.scaleOrdinal(d3.schemeCategory10);
 
-        force
-            .nodes(graph.nodes)
-            .links(graph.links)
-            .start();
+        const simulation = d3.forceSimulation(nodes)
+            .force("link", d3.forceLink(links)
+                .id(d => d.index)
+                .distance(d => (radius - diff * d.source.depth) * 3)
+                .strength(1))
+            .force("charge", d3.forceManyBody().strength(-800))
+            .force("center", d3.forceCenter())
+            .force("x", d3.forceX())
+            .force("y", d3.forceY());
 
-        var link = svg.selectAll(".link")
-            .data(graph.links)
-            .enter().append("line")
-            .attr("class", "link")
-            .style("stroke-width", function (d) {
-                return 6 - d.level;
-            });
+        const svg = d3.select("body").append("svg")
+            .attr("width", width).attr("height", height)
+            .attr("viewBox", [-width / 2, -height / 2, width, height]);
 
-        var node = svg.selectAll(".node")
-            .data(graph.nodes)
-            .enter().append("g")
-            .attr("class", "node")
-            .append("a")
-            .attr("xlink:href", function (d) { return d.link ? d.link : "javascript:void(0);"})
-            .call(force.drag);
-        
+        const link = svg.append("g")
+            .selectAll("line")
+            .data(links)
+            .join("line");
+
+        const node = svg.append("g")
+            .selectAll("a")
+            .data(nodes)
+            .join("a")
+            .attr("xlink:href", d => d.data.link ? d.data.link : "javascript:void(0)")
+            .call(drag(simulation));
+
         node.append("circle")
             .attr("r", function (d) {
-                return radius - diff * d.level;
+                return radius - diff * d.depth;
             })
             .style("fill", function (d) {
-                return color(d.level);
+                return color(d.depth);
             });
         node.append("text")
-            .attr("dx", function (d) { return (radius - diff * d.level) * 1.1 })
+            .attr("dx", d => (radius - diff * d.depth) * 1.1)
             .attr("dy", ".35em")
-            .text(function(d) { return d.title });
+            .text(d => d.data.title);
 
-        force.on("tick", function() {
-            link.attr("x1", function(d) { return d.source.x; })
-                .attr("y1", function(d) { return d.source.y; })
-                .attr("x2", function(d) { return d.target.x; })
-                .attr("y2", function(d) { return d.target.y; });
+        simulation.on("tick", () => {
+            link
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
 
-            node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+            // node
+            //     .attr("cx", d => d.x)
+            //     .attr("cy", d => d.y);
+            // node is `a` element
+            node.attr("transform", d => "translate(" + d.x + "," + d.y + ")");
         });
 
     </script>
