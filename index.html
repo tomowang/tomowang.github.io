@@ -14,6 +14,8 @@
         body {
             margin: 0;
             padding: 0;
+            width: 100%;
+            height: 100%;
         }
 
         a text {
@@ -29,7 +31,6 @@
 </head>
 
 <body>
-    <svg></svg>
     <!-- Placed at the end of the document so the pages load faster -->
     <!-- https://observablehq.com/@d3/force-directed-tree -->
     <script src="https://d3js.org/d3.v6.min.js" charset="utf-8"></script>
@@ -105,7 +106,7 @@
             .force("y", d3.forceY());
 
         const svg = d3.select("body").append("svg")
-            .attr("width", width).attr("height", height)
+            .attr("width", "100%").attr("height", "100%")
             .attr("viewBox", [-width / 2, -height / 2, width, height]);
 
         const link = svg.append("g")
